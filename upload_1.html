@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Upload Photo</title></head>
+<body style="text-align:center;font-family:sans-serif;padding-top:40px;">
+  <h2>Upload a photo of you and your pet, and let the real you both become part of this promise.</h2>
+  <p style="margin-top:24px;font-size:18px;">Please select a photo</p>
+  <input type="file" id="fileInput" accept="image/*">
+  <p id="status"></p>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const session = params.get('session');
+    const cloudName = params.get('cloud');
+    const preset = params.get('preset');
+
+    document.getElementById('fileInput').addEventListener('change', async function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      document.getElementById('status').innerText = 'Processing...';
+
+      // 用 canvas 重新绘制一次，让浏览器依照照片本身的 EXIF 方向自动摆正，
+      // 避免手机直拍的照片传到 Unity 之后变成躺着的
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+
+      document.getElementById('status').innerText = 'Uploading...';
+
+      const formData = new FormData();
+      formData.append('file', blob);
+      formData.append('upload_preset', preset);
+      formData.append('public_id', session);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      document.getElementById('status').innerText = res.ok
+        ? 'Upload successful! Not happy with it? Choose another photo to upload again, or return to the device to continue'
+        : 'Upload failed, please try again';
+
+      // 清空这次选的档案，才能重新选同一张或不同的照片再传一次
+      e.target.value = '';
+    });
+  </script>
+</body>
+</html>
