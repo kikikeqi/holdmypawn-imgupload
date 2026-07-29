@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Upload Photo</title></head>
+<body style="text-align:center;font-family:sans-serif;padding-top:40px;">
+  <h2>Upload a photo of you and your pet, and let the real you both become part of this promise.</h2>
+  <p style="margin-top:24px;font-size:18px;">Please select a photo</p>
+  <input type="file" id="fileInput" accept="image/*">
+  <p id="status"></p>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const session = params.get('session');
+    const cloudName = params.get('cloud');
+    const preset = params.get('preset');
+
+    // 每次重新选照片，编号往上加一，确保每次上传都是全新的 public_id，不需要 Overwrite 功能
+    let attempt = 0;
+
+    document.getElementById('fileInput').addEventListener('change', async function (e) {
+      attempt++;
+      const file = e.target.files[0];
+      document.getElementById('status').innerText = 'Uploading...';
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', preset);
+      formData.append('public_id', `${session}_${attempt}`);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      document.getElementById('status').innerText = res.ok
+        ? 'Upload successful! Please return to the device to continue'
+        : 'Upload failed, please try again';
+    });
+  </script>
+</body>
+</html>
