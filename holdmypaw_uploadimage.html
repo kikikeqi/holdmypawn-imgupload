@@ -12,28 +12,18 @@
     const cloudName = params.get('cloud');
     const preset = params.get('preset');
 
+    // 每次重新选照片，编号往上加一，确保每次上传都是全新的 public_id，不需要 Overwrite 功能
+    let attempt = 0;
+
     document.getElementById('fileInput').addEventListener('change', async function (e) {
+      attempt++;
       const file = e.target.files[0];
-      if (!file) return;
-
-      document.getElementById('status').innerText = 'Processing...';
-
-      // 用 canvas 重新绘制一次，让浏览器依照照片本身的 EXIF 方向自动摆正，
-      // 避免手机直拍的照片传到 Unity 之后变成躺着的
-      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(bitmap, 0, 0);
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-
       document.getElementById('status').innerText = 'Uploading...';
 
       const formData = new FormData();
-      formData.append('file', blob);
+      formData.append('file', file);
       formData.append('upload_preset', preset);
-      formData.append('public_id', session);
+      formData.append('public_id', `${session}_${attempt}`);
 
       const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
@@ -41,11 +31,8 @@
       });
 
       document.getElementById('status').innerText = res.ok
-        ? 'Upload successful! Not happy with it? Choose another photo to upload again, or return to the device to continue'
+        ? 'Upload successful! Please return to the device to continue'
         : 'Upload failed, please try again';
-
-      // 清空这次选的档案，才能重新选同一张或不同的照片再传一次
-      e.target.value = '';
     });
   </script>
 </body>
