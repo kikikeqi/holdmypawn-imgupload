@@ -1,40 +1,193 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Upload Photo</title></head>
-<body style="text-align:center;font-family:sans-serif;padding-top:40px;">
-  <h2>Upload a photo of you and your pet, and let the real you both become part of this promise.</h2>
-  <p style="margin-top:24px;font-size:18px;">Please select a photo</p>
-  <input type="file" id="fileInput" accept="image/*">
-  <p id="status"></p>
-  <progress id="uploadProgress" value="0" max="100" style="width:80%;margin-top:16px;display:none;"></progress>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Upload Photo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 24px 20px;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+      background: #fafafa;
+      color: #1f2937;
+    }
+
+    /* 整张卡片，比照截图那种白底、圆角、淡淡阴影的卡片风格 */
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-header h2 {
+      font-size: 18px;
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .intro-text {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.5;
+      margin: 0 0 20px 0;
+    }
+
+    /* 虚线框那个可点击的上传区域——用 label 包住隐藏的 input，点哪里都能触发选照片 */
+    .upload-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #d1d5db;
+      border-radius: 12px;
+      padding: 36px 16px;
+      cursor: pointer;
+      background: #fafafa;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .upload-zone:active {
+      border-color: #16a34a;
+      background: #f0fdf4;
+    }
+
+    .upload-icon {
+      width: 56px;
+      height: 56px;
+      margin-bottom: 14px;
+    }
+
+    .upload-text {
+      font-size: 15px;
+      color: #374151;
+      text-align: center;
+      margin: 0;
+    }
+    .upload-text .browse {
+      color: #16a34a;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    .upload-support {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    /* 真正的 file input 完全隐藏，靠上面那个 label 视觉区域去触发它 */
+    #fileInput {
+      display: none;
+    }
+
+    /* 选完照片之后的预览缩图，方便玩家确认选对照片 */
+    #previewWrap {
+      display: none;
+      margin-top: 16px;
+      text-align: center;
+    }
+    #previewImg {
+      max-width: 100%;
+      max-height: 220px;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+
+    progress {
+      width: 100%;
+      height: 10px;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 16px;
+      display: none;
+    }
+
+    #status {
+      font-size: 14px;
+      color: #374151;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 400px) {
+      body { padding: 16px 12px; }
+      .upload-zone { padding: 28px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <h2>Upload Photos</h2>
+    </div>
+
+    <p class="intro-text">Upload a photo of you and your pet, and let the real you both become part of this promise.</p>
+
+    <!-- label 包住整个虚线框，点击任何地方都会触发底下隐藏的 file input -->
+    <label class="upload-zone" for="fileInput">
+      <svg class="upload-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="4" width="56" height="56" rx="10" fill="#ECFDF5"/>
+        <circle cx="24" cy="24" r="6" fill="#86EFAC"/>
+        <path d="M8 46L24 30L34 40L44 30L56 42V52C56 54.2091 54.2091 56 52 56H12C9.79086 56 8 54.2091 8 52V46Z" fill="#22C55E"/>
+      </svg>
+      <p class="upload-text">Drop your image here, or <span class="browse">browse</span></p>
+      <p class="upload-support">Photos only</p>
+    </label>
+
+    <input type="file" id="fileInput" accept="image/*">
+
+    <div id="previewWrap">
+      <img id="previewImg" src="" alt="Preview">
+    </div>
+
+    <p id="status"></p>
+    <progress id="uploadProgress" value="0" max="100"></progress>
+  </div>
+
   <script>
     const params = new URLSearchParams(window.location.search);
     const session = params.get('session');
     const cloudName = params.get('cloud');
     const preset = params.get('preset');
-
     // 每次重新选照片，编号往上加一，确保每次上传都是全新的 public_id，不需要 Overwrite 功能
     let attempt = 0;
-
     document.getElementById('fileInput').addEventListener('change', function (e) {
       attempt++;
       const file = e.target.files[0];
+      if (!file) return;
+
+      // 新增：选完照片先显示一张预览缩图，玩家能立刻确认自己选对了照片
+      const previewWrap = document.getElementById('previewWrap');
+      const previewImg = document.getElementById('previewImg');
+      previewImg.src = URL.createObjectURL(file);
+      previewWrap.style.display = 'block';
+
       const progressBar = document.getElementById('uploadProgress');
       const statusEl = document.getElementById('status');
-
       progressBar.style.display = 'block';
       progressBar.value = 0;
       statusEl.innerText = 'Uploading... 0%';
-
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', preset);
       formData.append('public_id', `${session}_${attempt}`);
-
       // 用 XMLHttpRequest 而不是 fetch，因为只有 XHR 才能拿到「上传中」的即时进度事件
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, true);
-
       xhr.upload.onprogress = function (event) {
         if (event.lengthComputable) {
           const percent = Math.round((event.loaded / event.total) * 100);
@@ -42,7 +195,6 @@
           statusEl.innerText = `Uploading... ${percent}%`;
         }
       };
-
       xhr.onload = function () {
         if (xhr.status >= 200 && xhr.status < 300) {
           statusEl.innerText = 'Upload successful! Please return to the device to continue';
@@ -51,12 +203,10 @@
         }
         progressBar.style.display = 'none';
       };
-
       xhr.onerror = function () {
         statusEl.innerText = 'Upload failed, please try again';
         progressBar.style.display = 'none';
       };
-
       xhr.send(formData);
     });
   </script>
